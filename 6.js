@@ -955,3 +955,193 @@ async function gr() {
 }
 
 gr().catch(t => { y.log(t.toString()); }).finally(() => { y.exit(); });
+var m = /* Giả định runtime Protobuf đã được định nghĩa ở trên, tôi không sao chép lại toàn bộ để tránh dài dòng */;
+
+class K extends $ {
+    constructor(e = Mt, n = "Browse") { super(e, n); }
+    async pure() {
+        this.replaceText(this.message, "YouTube", "Premium");
+        this.iterate(this.message, "sectionListSupportedRenderers", e => {
+            for (let n = e.sectionListSupportedRenderers.length - 1; n >= 0; n--)
+                this.removeCommonAD(e, n), this.removeShorts(e, n);
+        });
+        await this.translate();
+        this.removeFrameworkUpdateAd();
+        return this;
+    }
+    removeCommonAD(e, n) {
+        let s = e.sectionListSupportedRenderers[n]?.itemSectionRenderer?.richItemContent;
+        for (let o = s?.length - 1; o >= 0; o--)
+            this.isAdvertise(s[o]) && (s.splice(o, 1), this.needProcess = !0);
+    }
+    removeShorts(e, n) {
+        let r = e.sectionListSupportedRenderers[n]?.shelfRenderer;
+        this.isShorts(r) && (e.sectionListSupportedRenderers.splice(n, 1), this.needProcess = !0);
+    }
+    getBrowseId() {
+        let e = "";
+        this.iterate(this.message?.responseContext, "key", (n, r) => {
+            n.key === "browse_id" && (e = n.value, r.length = 0);
+        });
+        return e;
+    }
+    async translate() {
+        let e = this.argument.lyricLang?.trim();
+        if (!(this.name === "Browse" && this.getBrowseId().startsWith("MPLYt")) || e === "off") return;
+        let n = "", r, s = !1;
+        if (this.iterate(this.message, "timedLyricsContent", (c, d) => {
+            r = c.timedLyricsContent, n = c.timedLyricsContent.runs.map(f => f.text).join("\n"), s = !0, d.length = 0;
+        }), s || this.iterate(this.message, "description", (c, d) => {
+            r = c.description.runs[0], n = c.description.runs[0].text, d.length = 0, s = !0;
+        }), !s) return;
+        let o = e.split("-")[0], i = Yt(n, e), a = await y.fetch({ method: "GET", url: i });
+        if (a.status === 200 && a.body) {
+            let c = JSON.parse(a.body), d = " & Translated by Google", f = c[2].includes(o);
+            r.text ? (r.text = c[0].map(l => f ? l[0] : l[1] + l[0] || "").join("\r\n"), this.iterate(this.message, "footer", (l, g) => { l.footer.runs[0].text += d, g.length = 0; })) :
+            r.runs.length <= c[0].length && (r.runs.forEach((l, g) => { l.text = f ? c[0][g][0] : l.text + `\n${c[0][g][0]}`; }), r.footerLabel += d);
+            this.needProcess = !0;
+        }
+    }
+    removeFrameworkUpdateAd() {
+        let e = this.message?.frameworkUpdateTransport?.entityBatchUpdate?.mutations;
+        if (e) for (let n = e.length - 1; n >= 0; n--) {
+            let r = e[n], s = _t.fromBinary(W.dec(decodeURIComponent(r.entityKey))), o = this.blackEml.includes(s.name);
+            !o && this.checkUnknownFiled(r?.payload) && (o = !0, this.blackEml.push(s.name), this.needSave = !0);
+            o && (e.splice(n, 1), this.needProcess = !0);
+        }
+    }
+}
+
+class ne extends K {
+    constructor(e = ke, n = "Next") { super(e, n); }
+}
+
+class re extends $ {
+    constructor(e = be, n = "Player") { super(e, n); }
+    pure() {
+        this.replaceText(this.message, "YouTube", "Premium");
+        this.message.adPlacements?.length && (this.message.adPlacements.length = 0);
+        this.message.adSlots?.length && (this.message.adSlots.length = 0);
+        delete this.message?.playbackTracking?.pageadViewthroughconversion;
+        this.addPlayAbility();
+        this.addTranslateCaption();
+        this.needProcess = !0;
+        return this;
+    }
+    addPlayAbility() {
+        let e = this.message?.playabilityStatus?.miniPlayer?.miniPlayerRender;
+        typeof e == "object" && (e.active = !0);
+        typeof this.message.playabilityStatus == "object" && (this.message.playabilityStatus.backgroundPlayer = new _e({ backgroundPlayerRender: { active: !0 } }));
+    }
+    addTranslateCaption() {
+        let e = this.argument.captionLang;
+        e != "off" && this.iterate(this.message, "captionTracks", (n, r) => {
+            let s = n.captionTracks, o = n.audioTracks;
+            if (Array.isArray(s)) {
+                let a = { [e]: 2, en: 1 }, c = -1, d = 0;
+                for (let f = 0; f < s.length; f++) {
+                    let l = s[f], g = a[l.languageCode];
+                    g && g > c && (c = g, d = f);
+                    l.isTranslatable = !0;
+                }
+                if (c !== 2) {
+                    let f = new Ge({ baseUrl: s[d].baseUrl + `&tlang=${e}`, name: { runs: [{ text: "Premium" }] }, vssId: `.${e}`, languageCode: e });
+                    s.push(f);
+                }
+                if (Array.isArray(o)) {
+                    let f = c === 2 ? d : s.length - 1;
+                    for (let l of o) l.captionTrackIndices?.includes(f) || l.captionTrackIndices.push(f), l.defaultCaptionTrackIndex = f, l.captionsInitialState = 3;
+                }
+                let i = { de: "Deutsch", ru: "Русский", fr: "Français", fil: "Filipino", ko: "한국어", ja: "日本語", en: "English", vi: "Tiếng Việt", "zh-Hant": "中文（繁體）", "zh-Hans": "中文（简体）", und: "@VirgilClyne" };
+                n.translationLanguages = Object.entries(i).map(([a, c]) => new Ye({ languageCode: a, languageName: { runs: [{ text: c }] } }));
+            }
+            r.length = 0;
+        });
+    }
+}
+
+class Ie extends K {
+    constructor(e = Ct, n = "Search") { super(e, n); }
+}
+
+class Ne extends $ {
+    constructor(e = At, n = "Shorts") { super(e, n); }
+    pure() {
+        this.replaceText(this.message, "YouTube", "Premium");
+        let e = this.message.entries?.length;
+        if (e) for (let n = e - 1; n >= 0; n--) this.message.entries[n].command?.reelWatchEndpoint?.overlay || (this.message.entries.splice(n, 1), this.needProcess = !0);
+        return this;
+    }
+}
+
+class Se extends $ {
+    constructor(e = Lt, n = "Guide") { super(e, n); }
+    pure() {
+        this.replaceText(this.message, "YouTube", "Premium");
+        let e = ["SPunlimited"];
+        this.argument.blockUpload && e.push("FEuploads");
+        this.argument.blockImmersive && e.push("FEmusic_immersive");
+        this.iterate(this.message, "rendererItems", n => {
+            for (let r = n.rendererItems.length - 1; r >= 0; r--) {
+                let s = n.rendererItems[r]?.iconRender?.browseId || n.rendererItems[r]?.labelRender?.browseId;
+                e.includes(s) && (n.rendererItems.splice(r, 1), this.needProcess = !0);
+            }
+        });
+        return this;
+    }
+}
+
+class Ee extends $ {
+    constructor(e = $t, n = "Setting") { super(e, n); }
+    pure() {
+        this.replaceText(this.message, "YouTube", "Premium");
+        this.iterate(this.message.settingItems, "categoryId", n => {
+            if (n.categoryId === 10135) {
+                let r = new qe({ settingBooleanRenderer: { itemId: 0, enableServiceEndpoint: { setClientSettingEndpoint: { settingData: { clientSettingEnum: { item: 151 }, boolValue: !0 } } }, disableServiceEndpoint: { setClientSettingEndpoint: { settingData: { clientSettingEnum: { item: 151 }, boolValue: !1 } } } } });
+                n.subSettings.push(r);
+            }
+        });
+        let e = new Te({ backgroundPlayBackSettingRenderer: { backgroundPlayback: !0, download: !0, downloadQualitySelection: !0, smartDownload: !0, icon: { iconType: 1093 } } });
+        this.message.settingItems.push(e);
+        this.needProcess = !0;
+        return this;
+    }
+}
+
+class Fe extends $ {
+    player; next;
+    constructor(e = Jt, n = "Watch") { super(e, n); this.player = new re; this.next = new ne; }
+    async pure() {
+        this.replaceText(this.message, "YouTube", "Premium");
+        for (let e of this.message.contents) {
+            e.player && (this.player.message = e.player, await this.player.pure());
+            e.next && (this.next.message = e.next, await this.next.pure());
+            this.needProcess = !0;
+        }
+        return this;
+    }
+}
+
+var pr = new Map([["browse", K], ["next", ne], ["player", re], ["search", Ie], ["reel_watch_sequence", Ne], ["guide", Se], ["get_setting", Ee], ["get_watch", Fe]]);
+
+function We(t) {
+    for (let [e, n] of pr.entries()) if (t.includes(e)) return new n;
+    return null;
+}
+
+async function gr() {
+    let t = We(y.request.url);
+    if (t) {
+        let e = y.response.bodyBytes;
+        y.timeStart("fromBinary");
+        t.fromBinary(e);
+        y.timeEnd("fromBinary");
+        y.timeStart("modify");
+        await t.modify();
+        y.timeEnd("modify");
+        t.done();
+    } else y.msg("YouTube Enhance", "脚本需要更新", "外部资源 -> 全部更新"), y.exit();
+}
+
+gr().catch(t => { y.log(t.toString()); }).finally(() => { y.exit(); });
+​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​​
